@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { store } from '@/lib/store'
+import { store } from '../../../../lib/store'
 
 const json = (status: number, body: unknown) => NextResponse.json(body, { status })
 

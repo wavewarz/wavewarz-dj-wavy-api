@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { store } from '@/lib/store'
-import { processJob } from '@/lib/worker'
+import { store } from '../../../../lib/store'
+import { processJob } from '../../../../lib/worker'
 
 const json = (status: number, body: unknown) => NextResponse.json(body, { status })
 

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import type { CreateJobApiRequest, CreateJobRequest } from '@/lib/types'
-import { r2 } from '@/lib/r2'
-import { store } from '@/lib/store'
-import { processJob } from '@/lib/worker'
+import { r2 } from '../../../lib/r2'
+import { store } from '../../../lib/store'
+import type { CreateJobApiRequest, CreateJobRequest } from '../../../lib/types'
+import { processJob } from '../../../lib/worker'
 
 const json = (status: number, body: unknown) => NextResponse.json(body, { status })
 
@@ -41,8 +41,18 @@ export async function POST(req: Request) {
       updatedAt: job.updatedAt,
     },
     uploads: {
-      trackA: { objectKey: aUpload.objectKey, uploadUrl: aUpload.uploadUrl, expiresInSeconds: aUpload.expiresInSeconds },
-      trackB: { objectKey: bUpload.objectKey, uploadUrl: bUpload.uploadUrl, expiresInSeconds: bUpload.expiresInSeconds },
+      trackA: {
+        objectKey: aUpload.objectKey,
+        uploadUrl: aUpload.uploadUrl,
+        expiresInSeconds: aUpload.expiresInSeconds,
+        requiredContentType: body.trackA.mimeType,
+      },
+      trackB: {
+        objectKey: bUpload.objectKey,
+        uploadUrl: bUpload.uploadUrl,
+        expiresInSeconds: bUpload.expiresInSeconds,
+        requiredContentType: body.trackB.mimeType,
+      },
     },
   })
 }
