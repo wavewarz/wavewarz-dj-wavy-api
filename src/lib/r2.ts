@@ -21,7 +21,6 @@ const getClient = () => {
     client: new S3Client({
       region: 'auto',
       endpoint: env.R2_ENDPOINT,
-      forcePathStyle: true,
       requestChecksumCalculation: 'WHEN_REQUIRED',
       responseChecksumValidation: 'WHEN_REQUIRED',
       credentials: {
