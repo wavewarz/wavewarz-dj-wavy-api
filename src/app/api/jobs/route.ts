@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { r2 } from '../../../lib/r2'
-import { store } from '../../../lib/store'
 import type { CreateJobApiRequest, CreateJobRequest } from '../../../lib/types'
+import { db } from '../../../lib/db'
 import { processJob } from '../../../lib/worker'
 
 const json = (status: number, body: unknown) => NextResponse.json(body, { status })
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     trackB: { ...body.trackB, r2ObjectKey: bUpload.objectKey },
   }
 
-  const job = store.createJob(internal)
+  const job = await db.createJob(internal)
 
   if (body.processNow) {
     void processJob({ jobId: job.id })

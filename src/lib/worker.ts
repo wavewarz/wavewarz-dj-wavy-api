@@ -1,16 +1,21 @@
 import { mockJudge } from './dj-wavy/mock-judge'
 import { runRealDjWavyJudging } from './dj-wavy/real-pipeline'
-import { store } from './store'
+import { db } from './db'
 
 const nowIso = () => new Date().toISOString()
 
 export const processJob = async (input: { jobId: string }): Promise<void> => {
-  const job = store.getJob(input.jobId)
+  const lockedBy = `worker:${process.env.VERCEL_REGION ?? 'local'}:${process.pid}`
+
+  const job = await db.getJob(input.jobId)
   if (!job) return
 
   if (job.status === 'processing' || job.status === 'succeeded') return
 
-  store.setJob({ ...job, status: 'processing', updatedAt: nowIso(), error: null })
+  const lockOk = await db.acquireJobLock({ jobId: job.id, lockedBy, ttlSeconds: 10 * 60 })
+  if (!lockOk) return
+
+  await db.setJobStatus({ id: job.id, status: 'processing', error: null })
 
   try {
     const provider = (process.env.DJ_WAVY_PROVIDER ?? 'mock').toLowerCase()
@@ -19,14 +24,19 @@ export const processJob = async (input: { jobId: string }): Promise<void> => {
       ? runRealDjWavyJudging(job.input)
       : mockJudge({ battleId: job.input.battleId }))
 
-    const result = store.createResult({
+    const result = await db.createResult({
       jobId: job.id,
       judgement: judged.judgement,
+      model: judged.judgement.model,
+      promptVersion: judged.judgement.promptVersion,
+      schemaVersion: judged.judgement.schemaVersion,
     })
 
-    store.setJob({ ...store.getJob(job.id)!, status: 'succeeded', resultId: result.id, error: null, updatedAt: nowIso() })
+    await db.setJobStatus({ id: job.id, status: 'succeeded', resultId: result.id, error: null })
   } catch (e) {
     const err = e instanceof Error ? e.message : 'unknown_error'
-    store.setJob({ ...store.getJob(job.id)!, status: 'failed', error: err, updatedAt: nowIso() })
+    await db.setJobStatus({ id: job.id, status: 'failed', error: err })
+  } finally {
+    await db.releaseJobLock({ jobId: job.id, lockedBy })
   }
 }
