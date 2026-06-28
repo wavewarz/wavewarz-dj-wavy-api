@@ -5,7 +5,9 @@ export const qstash = {
     const token = process.env.QSTASH_TOKEN
     if (!token) throw new Error('missing_env_QSTASH_TOKEN')
 
-    const client = new Client({ token })
+    const baseUrl = process.env.QSTASH_URL
+
+    const client = new Client({ token, baseUrl })
 
     await client.publishJSON({
       url: input.url,
