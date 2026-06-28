@@ -8,6 +8,19 @@ const METRICS: DjWavyMetricKey[] = [
   'web3_market_readiness',
 ]
 
+const extractFirstJsonObject = (content: string): string | null => {
+  const trimmed = content.trim()
+
+  const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+  if (fenceMatch?.[1]) return fenceMatch[1].trim()
+
+  const start = trimmed.indexOf('{')
+  const end = trimmed.lastIndexOf('}')
+  if (start === -1 || end === -1 || end <= start) return null
+
+  return trimmed.slice(start, end + 1).trim()
+}
+
 const clampScore = (v: unknown): number => {
   const n = typeof v === 'number' ? v : Number(v)
   if (!Number.isFinite(n)) throw new Error('invalid_metric_score')
@@ -29,7 +42,13 @@ export const parseDjWavyJudgementJson = (input: {
   try {
     obj = JSON.parse(input.content) as unknown
   } catch {
-    throw new Error('judge_json_parse_failed')
+    const extracted = extractFirstJsonObject(input.content)
+    if (!extracted) throw new Error('judge_json_parse_failed')
+    try {
+      obj = JSON.parse(extracted) as unknown
+    } catch {
+      throw new Error('judge_json_parse_failed')
+    }
   }
 
   const root = obj as {
