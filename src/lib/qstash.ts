@@ -10,7 +10,7 @@ export const qstash = {
     await client.publishJSON({
       url: input.url,
       body: input.body,
-      delay: input.delaySeconds ? `${input.delaySeconds}s` : undefined,
+      delay: input.delaySeconds,
     })
   },
 }
