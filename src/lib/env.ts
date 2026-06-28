@@ -3,6 +3,8 @@ export type Env = {
   R2_SECRET_ACCESS_KEY: string
   R2_BUCKET: string
   R2_ENDPOINT: string
+  SUPABASE_URL: string
+  SUPABASE_SERVICE_ROLE_KEY: string
   RESULTS_TTL_DAYS: number
 }
 
@@ -18,6 +20,8 @@ export const getEnv = (): Env => {
     R2_SECRET_ACCESS_KEY: must('R2_SECRET_ACCESS_KEY'),
     R2_BUCKET: must('R2_BUCKET'),
     R2_ENDPOINT: must('R2_ENDPOINT'),
+    SUPABASE_URL: must('SUPABASE_URL'),
+    SUPABASE_SERVICE_ROLE_KEY: must('SUPABASE_SERVICE_ROLE_KEY'),
     RESULTS_TTL_DAYS: Number(process.env.RESULTS_TTL_DAYS ?? 7),
   }
 }
