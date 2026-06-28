@@ -42,7 +42,6 @@ export const r2 = {
     const cmd = new PutObjectCommand({
       Bucket: env.R2_BUCKET,
       Key: objectKey,
-      ContentType: input.contentType,
     })
 
     const uploadUrl = await getSignedUrl(client, cmd, { expiresIn: expiresInSeconds })
