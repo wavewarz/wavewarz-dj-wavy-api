@@ -1,5 +1,6 @@
-import { store } from './store'
 import { mockJudge } from './dj-wavy/mock-judge'
+import { runRealDjWavyJudging } from './dj-wavy/real-pipeline'
+import { store } from './store'
 
 const nowIso = () => new Date().toISOString()
 
@@ -14,7 +15,9 @@ export const processJob = async (input: { jobId: string }): Promise<void> => {
   try {
     const provider = (process.env.DJ_WAVY_PROVIDER ?? 'mock').toLowerCase()
 
-    const judged = await (provider === 'mock' ? mockJudge({ battleId: job.input.battleId }) : mockJudge({ battleId: job.input.battleId }))
+    const judged = await (provider === 'gemini'
+      ? runRealDjWavyJudging(job.input)
+      : mockJudge({ battleId: job.input.battleId }))
 
     const result = store.createResult({
       jobId: job.id,
