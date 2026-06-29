@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto'
 import type { DjWavyJudgement, JobRecord, JobStatus, ResultRecord } from './types'
 import { supabaseAdmin } from './supabase-admin'
 
+type TrackSlot = 'A' | 'B'
+
 const mapJobRowToRecord = (row: any): JobRecord => {
   const input = {
     battleId: row.battle_id,
@@ -150,5 +152,103 @@ export const db = {
     })
 
     if (error) throw new Error(`db_releaseJobLock_failed: ${error.message}`)
+  },
+
+  async getTranscript(input: {
+    jobId: string
+    trackSlot: TrackSlot
+    windowStartSeconds: number
+    windowDurationSeconds: number
+    model: string
+    promptVersion: string
+  }): Promise<string | null> {
+    const { data, error } = await supabaseAdmin()
+      .from('dj_wavy_transcripts')
+      .select('transcript')
+      .eq('job_id', input.jobId)
+      .eq('track_slot', input.trackSlot)
+      .eq('window_start_seconds', input.windowStartSeconds)
+      .eq('window_duration_seconds', input.windowDurationSeconds)
+      .eq('model', input.model)
+      .eq('prompt_version', input.promptVersion)
+      .maybeSingle()
+
+    if (error) throw new Error(`db_getTranscript_failed: ${error.message}`)
+    return data?.transcript ?? null
+  },
+
+  async saveTranscript(input: {
+    jobId: string
+    trackSlot: TrackSlot
+    windowStartSeconds: number
+    windowDurationSeconds: number
+    model: string
+    promptVersion: string
+    transcript: string
+  }): Promise<void> {
+    const { error } = await supabaseAdmin().from('dj_wavy_transcripts').upsert(
+      {
+        id: randomUUID(),
+        job_id: input.jobId,
+        track_slot: input.trackSlot,
+        window_start_seconds: input.windowStartSeconds,
+        window_duration_seconds: input.windowDurationSeconds,
+        model: input.model,
+        prompt_version: input.promptVersion,
+        transcript: input.transcript,
+      },
+      {
+        onConflict: 'job_id,track_slot,window_start_seconds,window_duration_seconds,model,prompt_version',
+      }
+    )
+
+    if (error) throw new Error(`db_saveTranscript_failed: ${error.message}`)
+  },
+
+  async getAudioAnalysis(input: {
+    jobId: string
+    trackSlot: TrackSlot
+    windowStartSeconds: number
+    windowDurationSeconds: number
+    analyzerVersion: string
+  }): Promise<any | null> {
+    const { data, error } = await supabaseAdmin()
+      .from('dj_wavy_audio_analysis')
+      .select('analysis')
+      .eq('job_id', input.jobId)
+      .eq('track_slot', input.trackSlot)
+      .eq('window_start_seconds', input.windowStartSeconds)
+      .eq('window_duration_seconds', input.windowDurationSeconds)
+      .eq('analyzer_version', input.analyzerVersion)
+      .maybeSingle()
+
+    if (error) throw new Error(`db_getAudioAnalysis_failed: ${error.message}`)
+    return data?.analysis ?? null
+  },
+
+  async saveAudioAnalysis(input: {
+    jobId: string
+    trackSlot: TrackSlot
+    windowStartSeconds: number
+    windowDurationSeconds: number
+    analyzerVersion: string
+    analysis: any
+  }): Promise<void> {
+    const { error } = await supabaseAdmin().from('dj_wavy_audio_analysis').upsert(
+      {
+        id: randomUUID(),
+        job_id: input.jobId,
+        track_slot: input.trackSlot,
+        window_start_seconds: input.windowStartSeconds,
+        window_duration_seconds: input.windowDurationSeconds,
+        analyzer_version: input.analyzerVersion,
+        analysis: input.analysis,
+      },
+      {
+        onConflict: 'job_id,track_slot,window_start_seconds,window_duration_seconds,analyzer_version',
+      }
+    )
+
+    if (error) throw new Error(`db_saveAudioAnalysis_failed: ${error.message}`)
   },
 }

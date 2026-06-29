@@ -54,6 +54,21 @@ export const r2Bytes = {
     return await toArrayBuffer(res.Body)
   },
 
+  async downloadObjectBytesPrefix(input: { objectKey: string; byteLength: number }): Promise<ArrayBuffer> {
+    const { env, client } = getClient()
+    const len = Math.max(0, Math.floor(input.byteLength))
+    if (len <= 0) return new ArrayBuffer(0)
+
+    const cmd = new GetObjectCommand({
+      Bucket: env.R2_BUCKET,
+      Key: input.objectKey,
+      Range: `bytes=0-${len - 1}`,
+    })
+
+    const res = await client.send(cmd)
+    return await toArrayBuffer(res.Body)
+  },
+
   async createSignedDownloadUrl(input: { objectKey: string; expiresInSeconds?: number }): Promise<string> {
     const { env, client } = getClient()
     const expiresIn = input.expiresInSeconds ?? 15 * 60
