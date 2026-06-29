@@ -58,7 +58,15 @@ export const callGeminiTranscribeWindow = async (input: {
     return await tryOnce(primaryModelName)
   } catch (e) {
     if (fallbackModelName && fallbackModelName !== primaryModelName && isRetryableGeminiError(e)) {
-      return await tryOnce(fallbackModelName)
+      const primaryMsg = e instanceof Error ? e.message : String(e)
+      try {
+        return await tryOnce(fallbackModelName)
+      } catch (e2) {
+        const fallbackMsg = e2 instanceof Error ? e2.message : String(e2)
+        throw new Error(
+          `primary_model_failed: ${primaryModelName} ${primaryMsg}; fallback_model_failed: ${fallbackModelName} ${fallbackMsg}`
+        )
+      }
     }
     throw e
   }
