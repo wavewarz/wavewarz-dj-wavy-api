@@ -46,7 +46,15 @@ export async function POST(req: Request) {
     })
   }
 
-  await processJob({ jobId: body.jobId })
+  try {
+    await processJob({ jobId: body.jobId })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'unknown_error'
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500,
+      headers: { 'content-type': 'application/json' },
+    })
+  }
 
   return new Response(JSON.stringify({ ok: true }), {
     status: 200,
