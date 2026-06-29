@@ -1,6 +1,8 @@
 import { Receiver } from '@upstash/qstash'
 import { processJob } from '../../../../lib/worker'
 
+export const maxDuration = 300
+
 type Payload = { jobId: string }
 
 export async function POST(req: Request) {
