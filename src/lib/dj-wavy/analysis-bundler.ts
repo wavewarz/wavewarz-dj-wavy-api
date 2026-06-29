@@ -8,8 +8,8 @@ export const buildChunkedAudioAnalysis = async (input: {
   mimeType: string
   trackLabel: 'A' | 'B'
   battleId: string
-}): Promise<{ model: string; analyzerVersion: 'gemini_features_v1'; analysis: DjWavyAudioAnalysis[] }> => {
-  const analyzerVersion = 'gemini_features_v1' as const
+}): Promise<{ model: string; analyzerVersion: 'fft_features_v1'; analysis: DjWavyAudioAnalysis[] }> => {
+  const analyzerVersion = 'fft_features_v1' as const
   const pieces: DjWavyAudioAnalysis[] = []
   let usedModel = 'unknown'
 
