@@ -7,6 +7,7 @@ const nowIso = () => new Date().toISOString()
 
 const RETRY_WINDOW_MS = 5 * 60 * 1000
 const RETRY_DELAY_SECONDS = 30
+const WORKER_SOFT_TIMEOUT_MS = Number(process.env.WORKER_SOFT_TIMEOUT_MS ?? 55_000)
 
 const retryMetaFromError = (error: string | null | undefined): { retryUntilIso: string | null; attempts: number } => {
   if (!error) return { retryUntilIso: null, attempts: 0 }
@@ -44,12 +45,23 @@ export const processJob = async (input: { jobId: string }): Promise<void> => {
 
   await db.setJobStatus({ id: job.id, status: 'processing', error: null })
 
+  let softTimeoutHandle: ReturnType<typeof setTimeout> | undefined
+  const softTimeoutPromise = new Promise<never>((_, reject) => {
+    softTimeoutHandle = setTimeout(
+      () => reject(new Error(`worker_soft_timeout: exceeded ${WORKER_SOFT_TIMEOUT_MS}ms`)),
+      WORKER_SOFT_TIMEOUT_MS,
+    )
+  })
+
   try {
     const provider = (process.env.DJ_WAVY_PROVIDER ?? 'mock').toLowerCase()
 
-    const judged = await (provider === 'gemini'
-      ? runRealDjWavyJudging({ jobId: job.id, job: job.input })
-      : mockJudge({ battleId: job.input.battleId }))
+    const judged = await Promise.race([
+      provider === 'gemini'
+        ? runRealDjWavyJudging({ jobId: job.id, job: job.input })
+        : mockJudge({ battleId: job.input.battleId }),
+      softTimeoutPromise,
+    ])
 
     const result = await db.createResult({
       jobId: job.id,
@@ -94,6 +106,7 @@ export const processJob = async (input: { jobId: string }): Promise<void> => {
 
     await db.setJobStatus({ id: job.id, status: 'failed', error: err })
   } finally {
+    clearTimeout(softTimeoutHandle)
     await db.releaseJobLock({ jobId: job.id, lockedBy })
   }
 }
