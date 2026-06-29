@@ -1,16 +1,36 @@
 import { DJ_WAVY_CHUNK_WINDOWS } from '../chunking'
 import { callGeminiTranscribeWindow } from './transcribe'
+import { db } from '../db'
 
 export const buildChunkedTranscript = async (input: {
+  jobId: string
   audioBytes: ArrayBuffer
   mimeType: string
-  trackLabel: string
+  trackLabel: 'A' | 'B'
   battleId: string
 }): Promise<{ model: string; transcriptText: string }> => {
   const pieces: string[] = []
   let usedModel = 'unknown'
 
+  const promptVersion = 'transcribe_v1'
+
   for (const w of DJ_WAVY_CHUNK_WINDOWS) {
+    const modelName = process.env.DJ_WAVY_GEMINI_TRANSCRIBE_MODEL || 'gemini-2.5-pro'
+    const cached = await db.getTranscript({
+      jobId: input.jobId,
+      trackSlot: input.trackLabel,
+      windowStartSeconds: w.startSeconds,
+      windowDurationSeconds: w.durationSeconds,
+      model: modelName,
+      promptVersion,
+    })
+
+    if (cached) {
+      usedModel = modelName
+      pieces.push(`--- chunk ${w.startSeconds}-${w.startSeconds + w.durationSeconds}s ---\n${cached}`)
+      continue
+    }
+
     const { model, transcript } = await callGeminiTranscribeWindow({
       audioBytes: input.audioBytes,
       mimeType: input.mimeType,
@@ -19,6 +39,17 @@ export const buildChunkedTranscript = async (input: {
       window: w,
     })
     usedModel = model
+
+    await db.saveTranscript({
+      jobId: input.jobId,
+      trackSlot: input.trackLabel,
+      windowStartSeconds: w.startSeconds,
+      windowDurationSeconds: w.durationSeconds,
+      model,
+      promptVersion,
+      transcript,
+    })
+
     pieces.push(
       `--- chunk ${w.startSeconds}-${w.startSeconds + w.durationSeconds}s ---\n${transcript}`
     )

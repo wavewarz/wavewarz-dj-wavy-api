@@ -21,7 +21,7 @@ export const processJob = async (input: { jobId: string }): Promise<void> => {
     const provider = (process.env.DJ_WAVY_PROVIDER ?? 'mock').toLowerCase()
 
     const judged = await (provider === 'gemini'
-      ? runRealDjWavyJudging(job.input)
+      ? runRealDjWavyJudging({ jobId: job.id, job: job.input })
       : mockJudge({ battleId: job.input.battleId }))
 
     const result = await db.createResult({

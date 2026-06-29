@@ -1,4 +1,5 @@
 import type { CreateJobRequest } from '../types'
+import type { DjWavyAudioAnalysis } from './analyze'
 
 type PromptTrack = {
   label: 'A' | 'B'
@@ -6,6 +7,7 @@ type PromptTrack = {
   artistHandle: string
   durationSeconds: number | null
   transcriptText: string
+  audioAnalysis: DjWavyAudioAnalysis[]
 }
 
 export const buildDjWavyPrompt = (input: {
@@ -34,6 +36,7 @@ export const buildDjWavyPrompt = (input: {
     `CONSTRAINTS\n` +
     `- You MUST choose either A or B. No ties.\n` +
     `- Use the transcript as evidence for lyricism (quote short phrases).\n` +
+    `- Use the audio analysis (numerical features + notes) as evidence for engineering, energy, brightness, and clarity.\n` +
     `- Output STRICT JSON only. No markdown. No extra keys.\n\n` +
     `Battle: ${input.battleId}\n` +
     `prompt_version: ${input.promptVersion}\n` +
@@ -42,12 +45,14 @@ export const buildDjWavyPrompt = (input: {
     `- title: ${a.title}\n` +
     `- artist_handle: @${a.artistHandle}\n` +
     `- duration_seconds: ${a.durationSeconds ?? 'unknown'}\n` +
-    `- chunked_transcript: ${JSON.stringify(a.transcriptText)}\n\n` +
+    `- chunked_transcript: ${JSON.stringify(a.transcriptText)}\n` +
+    `- chunked_audio_analysis: ${JSON.stringify(a.audioAnalysis)}\n\n` +
     `Track B:\n` +
     `- title: ${b.title}\n` +
     `- artist_handle: @${b.artistHandle}\n` +
     `- duration_seconds: ${b.durationSeconds ?? 'unknown'}\n` +
-    `- chunked_transcript: ${JSON.stringify(b.transcriptText)}\n\n` +
+    `- chunked_transcript: ${JSON.stringify(b.transcriptText)}\n` +
+    `- chunked_audio_analysis: ${JSON.stringify(b.audioAnalysis)}\n\n` +
     `Return strict JSON only with this schema:\n` +
     `{\n` +
     `  \"winner\": \"A\" | \"B\",\n` +
@@ -63,21 +68,26 @@ export const buildDjWavyPrompt = (input: {
     `}`
 }
 
-export const jobToPromptTracks = (job: CreateJobRequest, transcripts: { A: string; B: string }) => {
+export const jobToPromptTracks = (
+  job: CreateJobRequest,
+  input: { transcripts: { A: string; B: string }; audioAnalysis: { A: DjWavyAudioAnalysis[]; B: DjWavyAudioAnalysis[] } }
+) => {
   return {
     trackA: {
       label: 'A' as const,
       title: job.trackA.title,
       artistHandle: job.trackA.artistHandle,
       durationSeconds: job.trackA.durationSeconds,
-      transcriptText: transcripts.A,
+      transcriptText: input.transcripts.A,
+      audioAnalysis: input.audioAnalysis.A,
     },
     trackB: {
       label: 'B' as const,
       title: job.trackB.title,
       artistHandle: job.trackB.artistHandle,
       durationSeconds: job.trackB.durationSeconds,
-      transcriptText: transcripts.B,
+      transcriptText: input.transcripts.B,
+      audioAnalysis: input.audioAnalysis.B,
     },
   }
 }
