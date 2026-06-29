@@ -39,7 +39,7 @@ export const processJob = async (input: { jobId: string }): Promise<void> => {
 
   if (job.status === 'succeeded') return
 
-  const lockOk = await db.acquireJobLock({ jobId: job.id, lockedBy, ttlSeconds: 10 * 60 })
+  const lockOk = await db.acquireJobLock({ jobId: job.id, lockedBy, ttlSeconds: 3 * 60 })
   if (!lockOk) return
 
   await db.setJobStatus({ id: job.id, status: 'processing', error: null })
