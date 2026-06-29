@@ -18,41 +18,47 @@ export async function POST(req: Request) {
   if (!body?.trackA?.title) return json(400, { error: 'missing_trackA' })
   if (!body?.trackB?.title) return json(400, { error: 'missing_trackB' })
 
-  const aUpload = await r2.createSignedUpload({ prefix: `jobs/${body.battleId}/A`, contentType: body.trackA.mimeType })
-  const bUpload = await r2.createSignedUpload({ prefix: `jobs/${body.battleId}/B`, contentType: body.trackB.mimeType })
+  try {
+    const aUpload = await r2.createSignedUpload({ prefix: `jobs/${body.battleId}/A`, contentType: body.trackA.mimeType })
+    const bUpload = await r2.createSignedUpload({ prefix: `jobs/${body.battleId}/B`, contentType: body.trackB.mimeType })
 
-  const internal: CreateJobRequest = {
-    battleId: body.battleId,
-    trackA: { ...body.trackA, r2ObjectKey: aUpload.objectKey },
-    trackB: { ...body.trackB, r2ObjectKey: bUpload.objectKey },
-  }
+    const internal: CreateJobRequest = {
+      battleId: body.battleId,
+      trackA: { ...body.trackA, r2ObjectKey: aUpload.objectKey },
+      trackB: { ...body.trackB, r2ObjectKey: bUpload.objectKey },
+    }
 
-  const job = await db.createJob(internal)
+    const job = await db.createJob(internal)
 
-  if (body.processNow) {
-    void processJob({ jobId: job.id })
-  }
+    if (body.processNow) {
+      void processJob({ jobId: job.id })
+    }
 
-  return json(200, {
-    job: {
-      id: job.id,
-      status: job.status,
-      createdAt: job.createdAt,
-      updatedAt: job.updatedAt,
-    },
-    uploads: {
-      trackA: {
-        objectKey: aUpload.objectKey,
-        uploadUrl: aUpload.uploadUrl,
-        expiresInSeconds: aUpload.expiresInSeconds,
-        requiredContentType: body.trackA.mimeType,
+    return json(200, {
+      job: {
+        id: job.id,
+        status: job.status,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
       },
-      trackB: {
-        objectKey: bUpload.objectKey,
-        uploadUrl: bUpload.uploadUrl,
-        expiresInSeconds: bUpload.expiresInSeconds,
-        requiredContentType: body.trackB.mimeType,
+      uploads: {
+        trackA: {
+          objectKey: aUpload.objectKey,
+          uploadUrl: aUpload.uploadUrl,
+          expiresInSeconds: aUpload.expiresInSeconds,
+          requiredContentType: body.trackA.mimeType,
+        },
+        trackB: {
+          objectKey: bUpload.objectKey,
+          uploadUrl: bUpload.uploadUrl,
+          expiresInSeconds: bUpload.expiresInSeconds,
+          requiredContentType: body.trackB.mimeType,
+        },
       },
-    },
-  })
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[POST /api/jobs] error:', msg)
+    return json(500, { error: 'internal_error', detail: msg })
+  }
 }
