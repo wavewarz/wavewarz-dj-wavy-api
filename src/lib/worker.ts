@@ -37,7 +37,7 @@ export const processJob = async (input: { jobId: string }): Promise<void> => {
   const job = await db.getJob(input.jobId)
   if (!job) return
 
-  if (job.status === 'processing' || job.status === 'succeeded') return
+  if (job.status === 'succeeded') return
 
   const lockOk = await db.acquireJobLock({ jobId: job.id, lockedBy, ttlSeconds: 10 * 60 })
   if (!lockOk) return
