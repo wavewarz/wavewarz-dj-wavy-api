@@ -42,6 +42,11 @@ export const decodeAudioWindowToMonoFloat32 = async (input: {
       '-hide_banner',
       '-loglevel',
       'error',
+      // reduce probe time on partial/truncated inputs
+      '-probesize',
+      '32k',
+      '-analyzeduration',
+      '1M',
       // seek + duration
       '-ss',
       String(start),
@@ -62,10 +67,25 @@ export const decodeAudioWindowToMonoFloat32 = async (input: {
 
     const child = spawn(ffmpegPath, args, { stdio: ['ignore', 'pipe', 'pipe'] })
 
-    const [out, err] = await Promise.all([collectStdout(child), collectStderr(child)])
+    const timeoutMs = 20_000
+    const timeout = setTimeout(() => {
+      try {
+        child.kill('SIGKILL')
+      } catch {
+        // ignore
+      }
+    }, timeoutMs)
+
+    const [out, err] = await Promise.all([collectStdout(child), collectStderr(child)]).finally(() => {
+      clearTimeout(timeout)
+    })
 
     const code: number = await new Promise((resolve) => child.on('close', resolve))
-    if (code !== 0) throw new Error(`ffmpeg_decode_failed: code=${code} stderr=${err.slice(0, 2000)}`)
+    if (code !== 0) {
+      const timedOut = child.killed
+      if (timedOut) throw new Error(`ffmpeg_decode_timeout: ${timeoutMs}ms stderr=${err.slice(0, 2000)}`)
+      throw new Error(`ffmpeg_decode_failed: code=${code} stderr=${err.slice(0, 2000)}`)
+    }
 
     if (out.byteLength < 4) throw new Error('ffmpeg_decode_empty')
 
