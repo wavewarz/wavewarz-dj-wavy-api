@@ -93,13 +93,16 @@ export const processJob = async (input: { jobId: string }): Promise<void> => {
         error: `retryable_upstream_error: ${err}; retry_until=${new Date(retryUntil).toISOString()}; attempts=${attempts}`,
       })
 
-      const publicBaseUrl = process.env.PUBLIC_BASE_URL
-      if (!publicBaseUrl) {
-        throw new Error('missing_env_PUBLIC_BASE_URL')
+      const workerProcessUrl =
+        process.env.WORKER_PROCESS_URL ??
+        (process.env.PUBLIC_BASE_URL
+          ? `${process.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/qstash/dj-wavy`
+          : null)
+      if (!workerProcessUrl) {
+        throw new Error('missing_env_WORKER_PROCESS_URL')
       }
 
-      const webhookUrl = `${publicBaseUrl.replace(/\/$/, '')}/api/qstash/dj-wavy`
-      await qstash.publishJson({ url: webhookUrl, body: { jobId: job.id }, delaySeconds: RETRY_DELAY_SECONDS })
+      await qstash.publishJson({ url: workerProcessUrl, body: { jobId: job.id }, delaySeconds: RETRY_DELAY_SECONDS })
 
       return
     }

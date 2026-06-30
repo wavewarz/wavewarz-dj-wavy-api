@@ -1,0 +1,22 @@
+{
+  "name": "dj-wavy-worker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "tsx worker-server/src/server.ts",
+    "dev": "tsx watch worker-server/src/server.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.879.0",
+    "@aws-sdk/s3-request-presigner": "^3.879.0",
+    "@google/generative-ai": "^0.21.0",
+    "@supabase/supabase-js": "^2.57.4",
+    "@upstash/qstash": "^2.9.0",
+    "fft.js": "^4.0.4",
+    "tsx": "^4.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5"
+  }
+}

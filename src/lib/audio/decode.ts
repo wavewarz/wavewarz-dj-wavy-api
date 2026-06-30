@@ -3,8 +3,17 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const ffmpegPath: string = require('ffmpeg-static')
+// Prefer FFMPEG_PATH env var (e.g. system ffmpeg on Docker/Cloud Run).
+// Falls back to ffmpeg-static when running on Vercel.
+let ffmpegPath: string | null = process.env.FFMPEG_PATH ?? null
+if (!ffmpegPath) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    ffmpegPath = require('ffmpeg-static') as string | null
+  } catch {
+    ffmpegPath = null
+  }
+}
 
 type DecodeWindow = { startSeconds: number; durationSeconds: number }
 
@@ -27,7 +36,7 @@ export const decodeAudioWindowToMonoFloat32 = async (input: {
   window: DecodeWindow
   sampleRateHz: number
 }): Promise<Float32Array> => {
-  if (!ffmpegPath) throw new Error('ffmpeg_static_not_found')
+  if (!ffmpegPath) throw new Error('ffmpeg_not_found: set FFMPEG_PATH env var or install ffmpeg-static')
 
   const dir = await mkdtemp(path.join(tmpdir(), 'dj-wavy-'))
   const inPath = path.join(dir, 'in')

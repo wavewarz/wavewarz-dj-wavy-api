@@ -17,12 +17,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return json(400, { error: 'missing_r2_object_keys' })
     }
 
-    const publicBaseUrl = process.env.PUBLIC_BASE_URL
-    if (!publicBaseUrl) {
-      return json(500, { error: 'missing_env_PUBLIC_BASE_URL' })
+    // WORKER_PROCESS_URL = Cloud Run /process endpoint (preferred)
+    // PUBLIC_BASE_URL fallback = old Vercel QStash route
+    const webhookUrl =
+      process.env.WORKER_PROCESS_URL ??
+      (process.env.PUBLIC_BASE_URL
+        ? `${process.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/qstash/dj-wavy`
+        : null)
+    if (!webhookUrl) {
+      return json(500, { error: 'missing_env_WORKER_PROCESS_URL' })
     }
-
-    const webhookUrl = `${publicBaseUrl.replace(/\/$/, '')}/api/qstash/dj-wavy`
 
     // If you want to test without QStash, you can call with ?direct=1
     const direct = new URL(req.url).searchParams.get('direct')
