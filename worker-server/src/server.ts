@@ -40,10 +40,12 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
           respond(res, 401, { error: 'missing_qstash_signature' })
           return
         }
-        // Reconstruct the public URL QStash signed against
-        const proto = (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0]?.trim() ?? 'https'
-        const host = (req.headers['x-forwarded-host'] as string | undefined) ?? req.headers['host'] ?? 'localhost'
-        const fullUrl = `${proto}://${host}/process`
+        // Use WORKER_PROCESS_URL as the canonical URL QStash signed against
+        const fullUrl = process.env.WORKER_PROCESS_URL ?? (() => {
+          const proto = (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0]?.trim() ?? 'https'
+          const host = (req.headers['x-forwarded-host'] as string | undefined) ?? req.headers['host'] ?? 'localhost'
+          return `${proto}://${host}/process`
+        })()
         const receiver = new Receiver({ currentSigningKey, nextSigningKey })
         const ok = await receiver.verify({ signature, body: rawBody, url: fullUrl })
         if (!ok) {
