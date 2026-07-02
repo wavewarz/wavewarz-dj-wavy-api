@@ -1,7 +1,7 @@
 # Build context must be the repo root:
 #   docker build -f worker-server/Dockerfile -t dj-wavy-worker .
 
-FROM node:20-slim
+FROM node:22-slim
 
 # Install system ffmpeg + TLS certs
 RUN apt-get update && apt-get install -y --no-install-recommends \
