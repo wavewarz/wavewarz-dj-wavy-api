@@ -39,6 +39,7 @@ export const processJob = async (input: { jobId: string }): Promise<void> => {
   if (!job) return
 
   if (job.status === 'succeeded') return
+  if (job.status === 'failed') return
 
   const lockOk = await db.acquireJobLock({ jobId: job.id, lockedBy, ttlSeconds: 3 * 60 })
   if (!lockOk) return
@@ -107,7 +108,12 @@ export const processJob = async (input: { jobId: string }): Promise<void> => {
       return
     }
 
-    await db.setJobStatus({ id: job.id, status: 'failed', error: err })
+    try {
+      await db.setJobStatus({ id: job.id, status: 'failed', error: err })
+    } catch (dbErr) {
+      const dbMsg = dbErr instanceof Error ? dbErr.message : String(dbErr)
+      throw new Error(`${err}; db_setJobStatus_failed: ${dbMsg}`)
+    }
   } finally {
     clearTimeout(softTimeoutHandle)
     await db.releaseJobLock({ jobId: job.id, lockedBy })

@@ -96,7 +96,7 @@ export const decodeAudioWindowToMonoFloat32 = async (input: {
       throw new Error(`ffmpeg_decode_failed: code=${code} stderr=${err.slice(0, 2000)}`)
     }
 
-    if (out.byteLength < 4) throw new Error('ffmpeg_decode_empty')
+    if (out.byteLength < 4) return new Float32Array(0)
 
     // Buffer -> Float32Array (copy)
     const ab = out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength)

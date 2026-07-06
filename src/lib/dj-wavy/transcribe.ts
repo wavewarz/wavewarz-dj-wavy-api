@@ -49,7 +49,7 @@ export const callGeminiTranscribeWindow = async (input: {
 
     const text = res.response.text()
     const transcript = typeof text === 'string' ? text.trim() : ''
-    if (!transcript) throw new Error('gemini_transcript_empty')
+    if (!transcript) return { model: modelName, transcript: '[no lyrics detected]' }
 
     return { model: modelName, transcript }
   }
