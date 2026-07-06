@@ -1,6 +1,7 @@
 import { createServer, IncomingMessage, ServerResponse } from 'node:http'
 import { Receiver } from '@upstash/qstash'
 import { processJob } from '../../src/lib/worker'
+import { db } from '../../src/lib/db'
 
 const PORT = Number(process.env.PORT ?? 8080)
 
@@ -22,6 +23,7 @@ const respond = (res: ServerResponse, status: number, body: unknown): void => {
 }
 
 const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+  let pendingJobId: string | undefined
   try {
     if (req.method === 'GET' && req.url === '/health') {
       respond(res, 200, { ok: true })
@@ -67,6 +69,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
         return
       }
 
+      pendingJobId = body.jobId
       await processJob({ jobId: body.jobId })
       respond(res, 200, { ok: true })
       return
@@ -76,6 +79,13 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown_error'
     console.error('[dj-wavy-worker] error:', msg)
+    if (pendingJobId) {
+      try {
+        await db.setJobStatus({ id: pendingJobId, status: 'failed', error: `worker_unhandled_exception: ${msg}` })
+      } catch {
+        // best-effort: ignore if DB is also unavailable
+      }
+    }
     // Return 500 so QStash retries the job
     respond(res, 500, { error: msg })
   }
