@@ -1,4 +1,4 @@
-import { DJ_WAVY_CHUNK_WINDOWS } from '../chunking'
+import type { AudioChunkWindow } from '../chunking'
 import { db } from '../db'
 import { callGeminiAnalyzeWindow, type DjWavyAudioAnalysis } from './analyze'
 
@@ -8,12 +8,13 @@ export const buildChunkedAudioAnalysis = async (input: {
   mimeType: string
   trackLabel: 'A' | 'B'
   battleId: string
+  windows: AudioChunkWindow[]
 }): Promise<{ model: string; analyzerVersion: 'fft_features_v1'; analysis: DjWavyAudioAnalysis[] }> => {
   const analyzerVersion = 'fft_features_v1' as const
   const pieces: DjWavyAudioAnalysis[] = []
   let usedModel = 'unknown'
 
-  for (const w of DJ_WAVY_CHUNK_WINDOWS) {
+  for (const w of input.windows) {
     const cached = await db.getAudioAnalysis({
       jobId: input.jobId,
       trackSlot: input.trackLabel,

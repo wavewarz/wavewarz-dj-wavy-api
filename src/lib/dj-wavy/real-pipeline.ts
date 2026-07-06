@@ -4,23 +4,47 @@ import { buildChunkedTranscript } from './transcript-bundler'
 import { buildDjWavyPrompt, jobToPromptTracks } from './prompt'
 import { callGeminiJudge } from './judge'
 import { buildChunkedAudioAnalysis } from './analysis-bundler'
-import { DJ_WAVY_CHUNK_WINDOWS } from '../chunking'
+import { getChunkWindows, type AudioChunkWindow } from '../chunking'
 
-const CLIP_AUDIO_EST_BYTES_PER_SECOND = 28_000
 const CLIP_PADDING_SECONDS = 8
+
+const bytesPerSecForMime = (mimeType: string): number => {
+  const m = mimeType.toLowerCase()
+  if (m.includes('wav') || m.includes('wave')) return 176_400
+  if (m.includes('flac')) return 112_500
+  return 56_000
+}
+
+const prefixBytesForTrack = (
+  mimeType: string,
+  durationSec: number | null,
+  windows: AudioChunkWindow[],
+): number => {
+  const bps = bytesPerSecForMime(mimeType)
+  const lastWindow = windows[windows.length - 1]
+  const maxEndSec = lastWindow.startSeconds + lastWindow.durationSeconds + CLIP_PADDING_SECONDS
+  const endSec = durationSec != null ? Math.min(durationSec + CLIP_PADDING_SECONDS, maxEndSec) : maxEndSec
+  return Math.ceil(endSec * bps)
+}
 
 export const runRealDjWavyJudging = async (input: {
   jobId: string
   job: CreateJobRequest
 }): Promise<{ model: string; judgement: DjWavyJudgement }> => {
   const job = input.job
-  const lastWindow = DJ_WAVY_CHUNK_WINDOWS[DJ_WAVY_CHUNK_WINDOWS.length - 1]
-  const maxEndSec = lastWindow.startSeconds + lastWindow.durationSeconds + CLIP_PADDING_SECONDS
-  const prefixBytes = Math.ceil(maxEndSec * CLIP_AUDIO_EST_BYTES_PER_SECOND)
+
+  const aWindows = getChunkWindows(job.trackA.durationSeconds)
+  const bWindows = getChunkWindows(job.trackB.durationSeconds)
 
   const [audioABytes, audioBBytes] = await Promise.all([
-    r2Bytes.downloadObjectBytesPrefix({ objectKey: job.trackA.r2ObjectKey, byteLength: prefixBytes }),
-    r2Bytes.downloadObjectBytesPrefix({ objectKey: job.trackB.r2ObjectKey, byteLength: prefixBytes }),
+    r2Bytes.downloadObjectBytesPrefix({
+      objectKey: job.trackA.r2ObjectKey,
+      byteLength: prefixBytesForTrack(job.trackA.mimeType, job.trackA.durationSeconds, aWindows),
+    }),
+    r2Bytes.downloadObjectBytesPrefix({
+      objectKey: job.trackB.r2ObjectKey,
+      byteLength: prefixBytesForTrack(job.trackB.mimeType, job.trackB.durationSeconds, bWindows),
+    }),
   ])
 
   const [aTranscript, bTranscript] = await Promise.all([
@@ -30,6 +54,7 @@ export const runRealDjWavyJudging = async (input: {
       mimeType: job.trackA.mimeType,
       trackLabel: 'A',
       battleId: job.battleId,
+      windows: aWindows,
     }),
     buildChunkedTranscript({
       jobId: input.jobId,
@@ -37,6 +62,7 @@ export const runRealDjWavyJudging = async (input: {
       mimeType: job.trackB.mimeType,
       trackLabel: 'B',
       battleId: job.battleId,
+      windows: bWindows,
     }),
   ])
 
@@ -47,6 +73,7 @@ export const runRealDjWavyJudging = async (input: {
       mimeType: job.trackA.mimeType,
       trackLabel: 'A',
       battleId: job.battleId,
+      windows: aWindows,
     }),
     buildChunkedAudioAnalysis({
       jobId: input.jobId,
@@ -54,6 +81,7 @@ export const runRealDjWavyJudging = async (input: {
       mimeType: job.trackB.mimeType,
       trackLabel: 'B',
       battleId: job.battleId,
+      windows: bWindows,
     }),
   ])
 
