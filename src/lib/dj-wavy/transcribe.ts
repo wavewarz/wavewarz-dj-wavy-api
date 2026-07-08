@@ -1,5 +1,6 @@
 import { getGeminiClient } from './gemini-client'
 import type { AudioChunkWindow } from '../chunking'
+import { extractWindowAsMp3 } from '../audio/decode'
 
 const isRetryableGeminiError = (e: unknown): boolean => {
   const msg = e instanceof Error ? e.message : String(e)
@@ -27,7 +28,9 @@ export const callGeminiTranscribeWindow = async (input: {
   const genAI = getGeminiClient()
   const buildModel = (modelName: string) => genAI.getGenerativeModel({ model: modelName })
 
-  const base64 = Buffer.from(input.audioBytes).toString('base64')
+  const windowMp3 = await extractWindowAsMp3({ audioBytes: input.audioBytes, window: input.window })
+  const base64 = Buffer.from(windowMp3).toString('base64')
+  const clipMimeType = 'audio/mpeg'
 
   const start = input.window.startSeconds
   const end = input.window.startSeconds + input.window.durationSeconds
@@ -44,7 +47,7 @@ export const callGeminiTranscribeWindow = async (input: {
     const model = buildModel(modelName)
     const res = await model.generateContent([
       { text: prompt },
-      { inlineData: { mimeType: input.mimeType, data: base64 } },
+      { inlineData: { mimeType: clipMimeType, data: base64 } },
     ])
 
     const text = res.response.text()
