@@ -105,3 +105,70 @@ export const decodeAudioWindowToMonoFloat32 = async (input: {
     await rm(dir, { recursive: true, force: true })
   }
 }
+
+export const extractWindowAsMp3 = async (input: {
+  audioBytes: ArrayBuffer
+  window: DecodeWindow
+}): Promise<ArrayBuffer> => {
+  if (!ffmpegPath) throw new Error('ffmpeg_not_found: set FFMPEG_PATH env var or install ffmpeg-static')
+
+  const dir = await mkdtemp(path.join(tmpdir(), 'dj-wavy-'))
+  const inPath = path.join(dir, 'in')
+
+  try {
+    await writeFile(inPath, Buffer.from(input.audioBytes))
+
+    const start = Math.max(0, input.window.startSeconds)
+    const dur = Math.max(0.1, input.window.durationSeconds)
+
+    const args = [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-probesize',
+      '32k',
+      '-analyzeduration',
+      '1M',
+      '-ss',
+      String(start),
+      '-t',
+      String(dur),
+      '-i',
+      inPath,
+      '-c:a',
+      'libmp3lame',
+      '-b:a',
+      '128k',
+      '-f',
+      'mp3',
+      'pipe:1',
+    ]
+
+    const child = spawn(ffmpegPath, args, { stdio: ['ignore', 'pipe', 'pipe'] })
+
+    const timeoutMs = 20_000
+    const timeout = setTimeout(() => {
+      try {
+        child.kill('SIGKILL')
+      } catch {
+        // ignore
+      }
+    }, timeoutMs)
+
+    const [out, err] = await Promise.all([collectStdout(child), collectStderr(child)]).finally(() => {
+      clearTimeout(timeout)
+    })
+
+    const code: number = await new Promise((resolve) => child.on('close', resolve))
+    if (code !== 0) {
+      const timedOut = child.killed
+      if (timedOut) throw new Error(`ffmpeg_extract_timeout: ${timeoutMs}ms stderr=${err.slice(0, 2000)}`)
+      throw new Error(`ffmpeg_extract_failed: code=${code} stderr=${err.slice(0, 2000)}`)
+    }
+
+    const ab = out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength)
+    return ab as ArrayBuffer
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+}
