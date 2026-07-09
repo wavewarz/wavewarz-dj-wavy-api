@@ -7,11 +7,14 @@ import { buildChunkedAudioAnalysis } from './analysis-bundler'
 import { getChunkWindows, type AudioChunkWindow } from '../chunking'
 
 const CLIP_PADDING_SECONDS = 8
+const MAX_PREFIX_BYTES = 100 * 1024 * 1024 // 100 MB hard cap
 
 const bytesPerSecForMime = (mimeType: string): number => {
   const m = mimeType.toLowerCase()
-  if (m.includes('wav') || m.includes('wave')) return 176_400
-  if (m.includes('flac')) return 112_500
+  // 800k covers 96kHz/24-bit stereo (576k bytes/sec) with headroom for edge cases
+  if (m.includes('wav') || m.includes('wave')) return 800_000
+  // 300k covers 96kHz/24-bit FLAC (typically 200-250k bytes/sec compressed)
+  if (m.includes('flac')) return 300_000
   return 56_000
 }
 
@@ -24,7 +27,7 @@ const prefixBytesForTrack = (
   const lastWindow = windows[windows.length - 1]
   const maxEndSec = lastWindow.startSeconds + lastWindow.durationSeconds + CLIP_PADDING_SECONDS
   const endSec = durationSec != null ? Math.min(durationSec + CLIP_PADDING_SECONDS, maxEndSec) : maxEndSec
-  return Math.ceil(endSec * bps)
+  return Math.min(Math.ceil(endSec * bps), MAX_PREFIX_BYTES)
 }
 
 export const runRealDjWavyJudging = async (input: {
