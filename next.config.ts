@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname),
   },
+  serverExternalPackages: ['ffmpeg-static'],
 }
 
 export default nextConfig
