@@ -13,6 +13,9 @@ const bytesPerSecForMime = (mimeType: string): number => {
   const m = mimeType.toLowerCase()
   // 800k covers 96kHz/24-bit stereo (576k bytes/sec) with headroom for edge cases
   if (m.includes('wav') || m.includes('wave')) return 800_000
+  // M4A commonly uses AAC (lossy) but can also be ALAC (lossless). Use a conservative
+  // estimate to avoid under-fetching prefix bytes for ALAC-in-M4A uploads.
+  if (m.includes('m4a') || m.includes('mp4')) return 800_000
   // 300k covers 96kHz/24-bit FLAC (typically 200-250k bytes/sec compressed)
   if (m.includes('flac')) return 300_000
   return 56_000
